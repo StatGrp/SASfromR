@@ -24,7 +24,7 @@ a first argument. This wrapper also makes it more easily usable in pipes.
 }
 \examples{
 # Run PROC MEANS on the mtcars data set and return results.
-# Note: When a single data set is supplied it will obtain the name "indata" in SAS.
+# Note: When a single data set is supplied it will obtain the name indata in SAS.
 \dontrun{
 applySAS(mtcars, r"(
   proc means data=indata;

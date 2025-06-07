@@ -91,8 +91,8 @@ SASfromR(r"(
 }
 
 # Run PROC MEANS on R data set mtcars by using indata argument.
-# Note that when a single data set is supplied, it will obtain the name "indata"
-(or "work.indata") in SAS.
+# Note that when a single data set is supplied, it will obtain the name indata
+# (or work.indata) in SAS.
 \dontrun{
 SASfromR(mtcars, r"(
   proc means data=indata;
@@ -115,7 +115,7 @@ SASfromR(list("mtcars"=mtcars), r"(
 )")
 }
 # With named lists, you can make multiple R data sets available to SAS.
-# Note that since the R data set "iris" contains names which are not SAS-compliant,
+# Note that since the R data set iris contains names which are not SAS-compliant,
 # these will be repaired and a warning will be issued telling you which names have
 # been changed and what the new names are.
 \dontrun{

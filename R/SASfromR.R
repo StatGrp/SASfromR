@@ -110,8 +110,8 @@ checkSASnames <- function(x, type="columns", repair=TRUE, warn=TRUE, xpt_version
 #' }
 #'
 #' # Run PROC MEANS on R data set mtcars by using indata argument.
-#' # Note that when a single data set is supplied, it will obtain the name "indata"
-#' (or "work.indata") in SAS.
+#' # Note that when a single data set is supplied, it will obtain the name indata
+#' # (or work.indata) in SAS.
 #' \dontrun{
 #' SASfromR(mtcars, r"(
 #'   proc means data=indata;
@@ -134,7 +134,7 @@ checkSASnames <- function(x, type="columns", repair=TRUE, warn=TRUE, xpt_version
 #' )")
 #'}
 #' # With named lists, you can make multiple R data sets available to SAS.
-#' # Note that since the R data set "iris" contains names which are not SAS-compliant,
+#' # Note that since the R data set iris contains names which are not SAS-compliant,
 #' # these will be repaired and a warning will be issued telling you which names have
 #' # been changed and what the new names are.
 #' \dontrun{
@@ -307,7 +307,7 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
 #'
 #' @examples
 #' # Run PROC MEANS on the mtcars data set and return results.
-#' # Note: When a single data set is supplied it will obtain the name "indata" in SAS.
+#' # Note: When a single data set is supplied it will obtain the name indata in SAS.
 #' \dontrun{
 #' applySAS(mtcars, r"(
 #'   proc means data=indata;
