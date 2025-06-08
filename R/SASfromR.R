@@ -1,3 +1,11 @@
+#' Check if sas.exe is in your PATH
+#'
+#' @returns Logical, TRUE if sas.exe is in your path, FALSE if not.
+#' @noRd
+SASinPATH <- function() {
+  return(system2("where","sas.exe")==0)
+}
+
 #' Check if, and optionally change, names so that they adhere to SAS standards.
 #'
 #' @param x Character vector of names to be checked.
@@ -157,6 +165,10 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   display_log=FALSE, display_output=TRUE,
   remove_tempfiles=TRUE, repair_names=TRUE) {
 
+
+  # check to see if sas.exe is in path or if sas_path has been supplied.
+  if (is.null(sas_path) & !SASinPATH()) stop("sas.exe does not appear to be in your PATH. Consider adding it to your PATH or supply the full path to sas.exe to the argument sas_path.")
+
   # create paths to indata and outdata directories in current temporary directory
   in_path <- file.path(tempdir(),"indata")
   if (!dir.exists(in_path)) dir.create(in_path)
@@ -302,6 +314,8 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
 #' @param sas_code A raw string (or vector of raw strings) containing SAS code to be executed.
 #' @param ... Arguments passed on to `SASfromR()`.
 #'
+#' @seealso [SASfromR()]
+#'
 #' @returns A data set or named list of data sets, corresponding to those produced by SAS and placed in the "out"-library (unless otherwise specified in `outdata`. If no data sets are to be returned, SASfromR will return NULL (silently).
 #' @export
 #'
@@ -309,7 +323,7 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
 #' # Run PROC MEANS on the mtcars data set and return results.
 #' # Note: When a single data set is supplied it will obtain the name indata in SAS.
 #' \dontrun{
-#' applySAS(mtcars, r"(
+#' withSAS(mtcars, r"(
 #'   proc means data=indata;
 #'     class vs;
 #'     var mpg;
@@ -318,11 +332,11 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
 #' )")
 #' }
 #'
-#' # Example utilizing applySAS() in a pipe
+#' # Example utilizing withSAS() in a pipe
 #' \dontrun{
 #' mtcars |>
 #'   dplyr::filter(am==0) |>
-#'   applySAS(r"(
+#'   withSAS(r"(
 #'    proc means data=indata;
 #'      class vs;
 #'      var mpg;
@@ -331,7 +345,7 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
 #'  )") |>
 #'  flextable::flextable()
 #'  }
-applySAS <- function(x=NULL, sas_code, ...) {
+withSAS <- function(x=NULL, sas_code, ...) {
   SASfromR(sas_code=sas_code, indata=x, ...)
 }
 
