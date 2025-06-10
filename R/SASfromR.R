@@ -3,7 +3,7 @@
 #' @returns Logical, TRUE if sas.exe is in your path, FALSE if not.
 #' @noRd
 SASinPATH <- function() {
-  return(system2("where","sas.exe")==0)
+  return(system2("where","sas.exe",stdout=FALSE,stderr=FALSE)==0)
 }
 
 #' Check if, and optionally change, names so that they adhere to SAS standards.
@@ -170,11 +170,16 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   if (is.null(sas_path) & !SASinPATH()) stop("sas.exe does not appear to be in your PATH. Consider adding it to your PATH or supply the full path to sas.exe to the argument sas_path.")
 
   # create paths to indata and outdata directories in current temporary directory
-  in_path <- file.path(tempdir(),"indata")
-  if (!dir.exists(in_path)) dir.create(in_path)
-  out_path <- file.path(tempdir(),"outdata")
-  if (!dir.exists(out_path)) dir.create(out_path)
-  script_header <- sprintf('libname out "%s";',out_path)
+  in_path <- tempfile(pattern="indata_")
+  dir.create(in_path)
+  out_path <- tempfile(pattern="outdata_")
+  dir.create(out_path)
+  # old...
+  #in_path <- file.path(tempdir(),"indata")
+  #if (!dir.exists(in_path)) dir.create(in_path)
+  #out_path <- file.path(tempdir(),"outdata")
+  #if (!dir.exists(out_path)) dir.create(out_path)
+  #script_header <- sprintf('libname out "%s";',out_path)
   if (!is.null(indata)) {
     # check input type
     if (!inherits(indata,"list") & !inherits(indata,"data.frame")) stop("Only dataframes or named lists of dataframes allowed for argument indata")
@@ -184,6 +189,7 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
       indata <- list("indata" = indata)
       message('Because no name was supplied for input datasets it will be named "indata". In SAS-code you can refer to it as "work.indata".')
     }
+    ######-------------- move all this to export_R_data(indata,xpt_version,repair_names) [returns script_header]
     # check dataset names
     names(indata) <- checkSASnames(names(indata), type="dataset", xpt_version=xpt_version, repair=repair_names)
     # for each entry in indata
@@ -207,7 +213,9 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
           sprintf("%%XPT2LOC(libref=work, filespec=%s);",in_name))
       )
     }
+    ###### ---------
   }
+
 
   # add script_header to sas_script and save to temporary file
   sas_script <- tempfile(pattern="sas_script", fileext=".sas", tmpdir=in_path)
@@ -224,6 +232,7 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   } else {
     sas_log <- log_file
   }
+  #####------- move all this to execute_SAS(sas_script,sas_log,sas_output,sas_path)
   # produce command for script
   sas.exe <- ifelse(is.null(sas_path),"sas.exe",sas_path)
   return_code <- system2(sas.exe,
@@ -248,19 +257,25 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
       warning(sprintf("The exit-status was %s.",return_code))
     }
   }
+  #####---------------
 
   # output sas log to console
   if (file.exists(sas_log) & display_log) {
+    #####--------------- move all this to display_SAS_log(sas_log)
     cat("\n","\033[34mSAS log","\033[33m \n",
         paste0(readLines(sas_log),collapse="\n") |> stringr::str_replace_all("\f","\n"),
         "\033[0m\n")
+    #####---------------
   }
   # output from sas to console
   if (file.exists(sas_output) & display_output) {
+    #####--------------- move this to display_SAS_output(sas_output)
     cat("\n","\033[34mSAS output","\033[36m \n",
         paste0(readLines(sas_output),collapse="\n") |> stringr::str_replace_all("\f","\n"),
         "\033[0m\n")
+    #####---------------
   }
+  ######------- move all of this to import_SAS_data(out_path,out_data) in utils (returns outdata_list)
   # check the output directory for existing files and compare with listed outdata
   if (is.null(outdata)) {
     # if no outdata was supplied, load all .sas7bdat files in the output directory
@@ -285,6 +300,7 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
       outdata_list[[out_name]] <- haven::read_sas(out_file)
     }
   }
+  #####-------
 
   # remove temporary files and directories
   on.exit({
