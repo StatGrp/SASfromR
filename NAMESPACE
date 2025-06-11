@@ -2,4 +2,9 @@
 
 export(SASfromR)
 export(checkSASnames)
+export(display_SAS_log)
+export(display_SAS_output)
+export(execute_SAS_script)
+export(export_R_data)
+export(import_SAS_data)
 export(withSAS)

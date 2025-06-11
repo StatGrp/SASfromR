@@ -1,60 +1,3 @@
-#' Check if sas.exe is in your PATH
-#'
-#' @returns Logical, TRUE if sas.exe is in your path, FALSE if not.
-#' @noRd
-SASinPATH <- function() {
-  return(system2("where","sas.exe",stdout=FALSE,stderr=FALSE)==0)
-}
-
-#' Check if, and optionally change, names so that they adhere to SAS standards.
-#'
-#' @param x Character vector of names to be checked.
-#' @param type Character, either "columns" or "dataset", referring to which type of SAS-names are targeted. In xpt version 5, column names may only be 8 characters long, otherwise 32.
-#' @param repair Logical, whether to repair the names (change them to adhere to SAS standards) or to leave as is.
-#' @param warn Logical, whether warning should be displayed when names have been repaired.
-#' @param xpt_version Numeric, which version of xpt (SAS transport files) should be used (version 8 is default and recommended).
-#'
-#' @returns A character vector of names. If repair=FALSE then returns the original names, if repair=TRUE returns the repaired names.
-#' @export
-#'
-#' @examples
-#' # check if the names of an R data set are SAS compliant.
-#' checkSASnames(iris)
-#' # check and repair the names of an R data set.
-#' iris2 <- checkSASnames(iris, repair=TRUE)
-checkSASnames <- function(x, type="columns", repair=TRUE, warn=TRUE, xpt_version=8) {
-  y <- x
-  maxlength <- ifelse(type=="columns", ifelse(xpt_version==5,8L,32L), 32L)
-  nonalphanum <- grepl("[^0-9a-zA-Z_]",x)
-  #### better to use base::abbreviate first, then replace alphanumeric
-  if (any(nonalphanum)) {
-    if (repair) {
-      y <- stringr::str_replace_all(x,"[^0-9a-zA-Z_]","_")
-    } else {
-      stop(sprintf("The following names have non-alpha-numeric characters which is not allowed in SAS: %s.",
-            paste0(x[nonalphanum],collapse=", ")))
-    }
-  }
-  toolong <- (nchar(y)>maxlength)
-  if (any(toolong)) {
-    if (repair) {
-      y <- abbreviate(y,maxlength)
-    } else {
-      stop(sprintf("The following names are too long for SAS names: %s",
-      paste0(x[toolong],collapse=", ")))
-    }
-  }
-  chng <- (y!=x)
-  if (any(chng)) {
-    varchanges <- paste(x[chng],y[chng],sep=" --> ")
-    if (warn) warning(sprintf("The following names were changed to comply with SAS standards:\n%s",paste0(varchanges,collapse="\n")))
-  }
-  return(y)
-}
-
-
-
-
 #' Execute SAS code from within R.
 #'
 #' A function which allows you to run SAS from within R (through batch-mode),
@@ -165,61 +108,23 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   display_log=FALSE, display_output=TRUE,
   remove_tempfiles=TRUE, repair_names=TRUE) {
 
-
-  # check to see if sas.exe is in path or if sas_path has been supplied.
-  if (is.null(sas_path) & !SASinPATH()) stop("sas.exe does not appear to be in your PATH. Consider adding it to your PATH or supply the full path to sas.exe to the argument sas_path.")
-
   # create paths to indata and outdata directories in current temporary directory
   in_path <- tempfile(pattern="indata_")
   dir.create(in_path)
   out_path <- tempfile(pattern="outdata_")
   dir.create(out_path)
-  # old...
-  #in_path <- file.path(tempdir(),"indata")
-  #if (!dir.exists(in_path)) dir.create(in_path)
-  #out_path <- file.path(tempdir(),"outdata")
-  #if (!dir.exists(out_path)) dir.create(out_path)
-  #script_header <- sprintf('libname out "%s";',out_path)
-  if (!is.null(indata)) {
-    # check input type
-    if (!inherits(indata,"list") & !inherits(indata,"data.frame")) stop("Only dataframes or named lists of dataframes allowed for argument indata")
-    if (inherits(indata,"list") & is.null(names(indata))) stop("Only named lists are allowed for argument indata")
-    # Handle case when only dataframe supplied
-    if (inherits(indata,"data.frame")) {
-      indata <- list("indata" = indata)
-      message('Because no name was supplied for input datasets it will be named "indata". In SAS-code you can refer to it as "work.indata".')
-    }
-    ######-------------- move all this to export_R_data(indata,xpt_version,repair_names) [returns script_header]
-    # check dataset names
-    names(indata) <- checkSASnames(names(indata), type="dataset", xpt_version=xpt_version, repair=repair_names)
-    # for each entry in indata
-    for (in_name in names(indata)) {
-      # check names of columns
-      names(indata[[in_name]]) <- checkSASnames(names(indata[[in_name]]), type="columns", xpt_version=xpt_version, repair=repair_names)
-      # create temporary files in indata temporary directory
-      tmp <- file.path(in_path,sprintf("%s.xpt",in_name))
-      # export to xpt
-      haven::write_xpt(
-        indata[[in_name]],
-        path = tmp,
-        version = xpt_version
-      )
-      # add import instructions to script header
-      script_header <- c(
-        script_header,
-        sprintf('libname %s xport "%s";',in_name,tmp),
-        ifelse(xpt_version==5,
-          sprintf("data work.%s; set %s.%s; run;",in_name, in_name, in_name),
-          sprintf("%%XPT2LOC(libref=work, filespec=%s);",in_name))
-      )
-    }
-    ###### ---------
-  }
 
+  # create header that specifies the output path for SAS
+  outdata_header <- sprintf('libname out "%s";',out_path)
+  # export R data if it is supplied, create header for SAS to import
+  indata_header <- export_R_data(indata,
+                                 in_path = in_path,
+                                 xpt_version  = xpt_version,
+                                 repair_names = repair_names)
 
-  # add script_header to sas_script and save to temporary file
-  sas_script <- tempfile(pattern="sas_script", fileext=".sas", tmpdir=in_path)
-  readr::write_lines(c(script_header,sas_code),file=sas_script)
+  # add script_headers to sas_script and save to temporary file
+  sas_script <- tempfile(pattern="sas_script_", fileext=".sas", tmpdir=in_path)
+  readr::write_lines(c(outdata_header, indata_header, sas_code), file=sas_script)
 
   # create output and log files if not specified
   if (is.null(output_file)) {
@@ -232,75 +137,17 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   } else {
     sas_log <- log_file
   }
-  #####------- move all this to execute_SAS(sas_script,sas_log,sas_output,sas_path)
-  # produce command for script
-  sas.exe <- ifelse(is.null(sas_path),"sas.exe",sas_path)
-  return_code <- system2(sas.exe,
-                         c("-nosplash", "-icon", "-sysin", sas_script,"-log", sas_log, "-print",sas_output),
-                         stdout = FALSE,
-                         stderr = FALSE
-                         #stdout=file.path(getwd(),"system.out"),
-                         #stderr=file.path(getwd(),"system.err")
-  )
 
-  # Handle errors (should be improved)
-  if (return_code!="0") {
-    if (return_code==2) {
-      # if error, display log regardless, and
-      cat("\n","\033[34mSAS log","\033[33m \n",
-          paste0(readLines(sas_log),collapse="\n") |> stringr::str_replace_all("\f","\n"),
-          "\033[0m\n")
-      warning(sprintf("The exit-status was %s. Please check the SAS-log for errors.",return_code))
-    } else if (return_code==127) {
-      warning(sprintf("The exit-status was %s. This probably means that sas.exe is not in your PATH. Add the directory where sas.exe is located to your PATH or set it to working directory (not optimal).",return_code))
-    } else {
-      warning(sprintf("The exit-status was %s.",return_code))
-    }
-  }
-  #####---------------
+  # execute SAS code
+  execute_SAS_script(sas_script,
+                     sas_path = sas_path,
+                     sas_log = sas_log,
+                     sas_output = sas_output,
+                     display_output = display_output,
+                     display_log = display_log)
 
-  # output sas log to console
-  if (file.exists(sas_log) & display_log) {
-    #####--------------- move all this to display_SAS_log(sas_log)
-    cat("\n","\033[34mSAS log","\033[33m \n",
-        paste0(readLines(sas_log),collapse="\n") |> stringr::str_replace_all("\f","\n"),
-        "\033[0m\n")
-    #####---------------
-  }
-  # output from sas to console
-  if (file.exists(sas_output) & display_output) {
-    #####--------------- move this to display_SAS_output(sas_output)
-    cat("\n","\033[34mSAS output","\033[36m \n",
-        paste0(readLines(sas_output),collapse="\n") |> stringr::str_replace_all("\f","\n"),
-        "\033[0m\n")
-    #####---------------
-  }
-  ######------- move all of this to import_SAS_data(out_path,out_data) in utils (returns outdata_list)
-  # check the output directory for existing files and compare with listed outdata
-  if (is.null(outdata)) {
-    # if no outdata was supplied, load all .sas7bdat files in the output directory
-    outdata_files <- list.files(out_path)
-    outdata_files <- outdata_files[grepl(".*\\.sas7bdat",outdata_files)]
-    outdata_paths <- file.path(out_path,outdata_files)
-    names(outdata_paths) <- stringr::str_extract(outdata_files,"(.*)\\.sas7bdat", group=1)
-  } else {
-    # create paths to the output datasets and check that they exist
-    outdata_paths <- file.path(out_path,paste0(outdata,".sas7bdat"))
-    names(outdata_paths) <- outdata
-    if (any(!file.exists(outdata_paths))) warning("One or more of the listed output datasets were not created. Check that you spelled it correctly and/or check the logs.")
-    outdata_paths <- outdata_paths[file.exists(outdata_paths)]
-  }
-
-  # import all output datasets
-  outdata_list <- list()
-  if (length(outdata_paths)>0) {
-    for (i in 1:length(outdata_paths)) {
-      out_name <- names(outdata_paths)[i]
-      out_file <- outdata_paths[i]
-      outdata_list[[out_name]] <- haven::read_sas(out_file)
-    }
-  }
-  #####-------
+  # import all data from SAS
+  return(import_SAS_data(out_path, outdata))
 
   # remove temporary files and directories
   on.exit({
@@ -309,14 +156,6 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
       unlink(out_path, recursive=TRUE)
     }
   })
-  # return output data
-  if (length(outdata_list)==0) {
-    return(invisible(NULL))
-  } else if (length(outdata_list)==1) {
-    return(outdata_list[[1]])
-  } else {
-    return(outdata_list)
-  }
 }
 
 #' Wrapper around SASfromR() to make input data set the first argument.
