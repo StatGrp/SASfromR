@@ -10,6 +10,7 @@ SASfromR(
   outdata = NULL,
   xpt_version = 8,
   sas_path = NULL,
+  base_dir = tempdir(),
   output_file = NULL,
   log_file = NULL,
   display_log = FALSE,
@@ -28,6 +29,8 @@ SASfromR(
 \item{xpt_version}{Numeric. Which version of SAS transport files (xpt) do you wish to use (version 8 is default and recommended).}
 
 \item{sas_path}{The full path to sas.exe (useful if it is not in your user PATH variable, though ideally you should add it to your PATH). Example: `sas_path=file.path("C:","Program Files","SASHome","SASFoundation","9.4","sas.exe")`.}
+
+\item{base_dir}{The full path to a directory where temporary (if remove_tempfiles=TRUE) files are stored. Defaults to the R sessions temporary directory.}
 
 \item{output_file}{Path to where you wish to store the output (other than generated data sets) from your SAS call. By default the output will be displayed in the R console but not stored persistently. Output to console can be turned off using `display_output=FALSE`.}
 
