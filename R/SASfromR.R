@@ -147,9 +147,6 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
                      display_output = display_output,
                      display_log = display_log)
 
-  # import all data from SAS
-  return(import_SAS_data(out_path, outdata))
-
   # remove temporary files and directories
   on.exit({
     if (remove_tempfiles) {
@@ -157,6 +154,10 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
       unlink(out_path, recursive=TRUE)
     }
   })
+
+  # import all data from SAS
+  return(import_SAS_data(out_path, outdata))
+
 }
 
 #' Wrapper around SASfromR() to make input data set the first argument.
