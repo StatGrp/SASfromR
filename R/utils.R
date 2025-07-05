@@ -31,7 +31,7 @@ checkSASnames <- function(x, type="columns", repair=TRUE, warn=TRUE, xpt_version
     if (repair) {
       y <- stringr::str_replace_all(x,"[^0-9a-zA-Z_]","_")
     } else {
-      stop(sprintf("The following names have non-alpha-numeric characters which is not allowed in SAS: %s.",
+      cli::cli_abort(call=NULL,sprintf("The following names have non-alpha-numeric characters which is not allowed in SAS: %s.",
                    paste0(x[nonalphanum],collapse=", ")))
     }
   }
@@ -40,14 +40,14 @@ checkSASnames <- function(x, type="columns", repair=TRUE, warn=TRUE, xpt_version
     if (repair) {
       y <- abbreviate(y,maxlength)
     } else {
-      stop(sprintf("The following names are too long for SAS names: %s",
+      cli::cli_abort(call=NULL,sprintf("The following names are too long for SAS names: %s",
                    paste0(x[toolong],collapse=", ")))
     }
   }
   chng <- (y!=x)
   if (any(chng)) {
     varchanges <- paste(x[chng],y[chng],sep=" --> ")
-    if (warn) warning(sprintf("The following names were changed to comply with SAS standards:\n%s",paste0(varchanges,collapse="\n")))
+    if (warn) cli::cli_alert(sprintf("The following names were changed to comply with SAS standards:\n%s",paste0(varchanges,collapse="\n")))
   }
   return(y)
 }
@@ -74,12 +74,12 @@ export_R_data <- function(indata=NULL, in_path, xpt_version=8, repair_names=TRUE
   # if not null
   if (!is.null(indata)) {
     # check input type
-    if (!inherits(indata,"list") & !inherits(indata,"data.frame")) stop("Only dataframes or named lists of dataframes allowed for argument indata")
-    if (inherits(indata,"list") & is.null(names(indata))) stop("Only named lists are allowed for argument indata")
+    if (!inherits(indata,"list") & !inherits(indata,"data.frame")) cli::cli_abort(call=NULL,"Only dataframes or named lists of dataframes allowed for argument indata")
+    if (inherits(indata,"list") & is.null(names(indata))) cli::cli_abort(call=NULL,"Only named lists are allowed for argument indata")
     # Handle case when only dataframe supplied
     if (inherits(indata,"data.frame")) {
       indata <- list("indata" = indata)
-      message('Because no name was supplied for input datasets it will be named "indata". In SAS-code you can refer to it as "work.indata".')
+      cli::cli_alert('Because no name was supplied for input datasets it will be named "indata".')
     }
     # check data set names
     names(indata) <- checkSASnames(names(indata), type="dataset", xpt_version=xpt_version, repair=repair_names)
@@ -122,9 +122,24 @@ export_R_data <- function(indata=NULL, in_path, xpt_version=8, repair_names=TRUE
 #' SASfromR("proc contents data=sashelp.cars; run;", log_file = logfile, display_log=FALSE)
 #' display_SAS_log(logfile)}
 display_SAS_log <- function(sas_log) {
-  cat("\n","\033[34mSAS log","\033[33m \n",
-      paste0(readLines(sas_log),collapse="\n") |> stringr::str_replace_all("\f","\n"),
-      "\033[0m\n")
+  #cat("\n","\033[34mSAS log","\033[33m \n",
+  #    paste0(readLines(sas_log),collapse="\n") |> stringr::str_replace_all("\f","\n"),
+  #    "\033[0m\n")
+  outlines <- readLines(sas_log)
+  outlines_decorated <- lapply(outlines, function(x) {
+      x <- stringr::str_replace(x,"WARNING:","{.warning WARNING:}")
+      x <- stringr::str_replace(x,"ERROR:", "{.error ERROR:}")
+    })
+  cli::cli({
+    cli::cli_h1("SAS Log")
+    cli::cli_div(theme = list(span.error = list(color = "red"),
+                              span.warning = list(color="orange")))
+    for (line in outlines_decorated) {
+      cli::cli_text(line)
+    }
+    cli::cli_end()
+    cli::cli_rule()
+  })
 }
 
 #' Display the output from SAS procedures
@@ -140,9 +155,40 @@ display_SAS_log <- function(sas_log) {
 #' SASfromR("proc contents data=sashelp.cars; run;", output_file = outfile, display_output=FALSE)
 #' display_SAS_output(outfile)}
 display_SAS_output <- function(sas_output) {
-  cat("\n","\033[34mSAS output","\033[36m \n",
-      paste0(readLines(sas_output),collapse="\n") |> stringr::str_replace_all("\f","\n"),
-      "\033[0m\n")
+  #cat("\n","\033[34mSAS output","\033[36m \n","\n",
+  #    readLines(sas_output) |> stringr::str_replace_all("\f","\n") |> paste0(collapse="\n"),
+  #    "\033[0m\n")
+  outlines <- readLines(sas_output) |> stringr::str_replace_all("\x83","-")
+  cli::cli({
+    cli::cli_h1("SAS Output")
+    cli::cli_div(class="verbatim",
+                 theme=list(.verbatim=list(color="#fffed5"),
+                            rule = list(color="cyan",
+                                        "line-type"=".")))
+    cli::cli_text(outlines[1])
+    cli::cli_verbatim(outlines[-1])
+    cli::cli_rule()
+    cli::cli_end()
+  })
+}
+
+#' Check the SAS log for errors and warnings.
+#'
+#' @param sas_log Full path to a stored SAS log.
+#'
+#' @returns A list of errors and.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' logfile <- tempfile()
+#' SASfromR("proc contents data=sashelp.cars; run;", log_file = logfile, display_log=FALSE)
+#' display_SAS_log(logfile)}
+check_sas_log <- function(sas_log) {
+  outlines <- readLines(sas_log)
+  errs <- outlines[stringr::str_detect(outlines,"ERROR")]
+  warns <- outlines[stringr::str_detect(outlines,"WARNING")]
+  return(list(errors = errs, warnings=warns))
 }
 
 
@@ -171,29 +217,38 @@ execute_SAS_script <- function(sas_script,
                                display_output=TRUE, display_log=TRUE) {
 
   # check to see if sas.exe is in path or if sas_path has been supplied.
-  if (is.null(sas_path) & !SASinPATH()) stop("sas.exe does not appear to be in your PATH. Consider adding it to your PATH or supply the full path to sas.exe to the argument sas_path.")
+  if (is.null(sas_path) & !SASinPATH()) cli::cli_abort(call=NULL,"sas.exe does not appear to be in your PATH. Consider adding it to your PATH or supply the full path to sas.exe to the argument sas_path.")
 
 
   # produce command for script
   sas.exe <- ifelse(is.null(sas_path),"sas.exe",sas_path)
   return_code <- system2(sas.exe,
-                         c("-nosplash", "-icon", "-sysin", sas_script,"-log", sas_log, "-print",sas_output),
+                         c("-nosplash", "-batch", "-sysin", sas_script,"-log", sas_log, "-print",sas_output),
                          stdout = FALSE,
-                         stderr = FALSE
+                         stderr = FALSE)
                          #stdout=file.path(getwd(),"system.out"),
-                         #stderr=file.path(getwd(),"system.err")
-  )
+                         #stderr=file.path(getwd(),"system.err"))
 
   # Handle errors (should be improved)
+  sas_conditions <- check_sas_log(sas_log)
+  if (length(sas_conditions$warnings) | length(sas_conditions$errors)) {
+    cli::cli({
+      cli::cli_rule()
+      cli::cli_alert("The following errors and/or warnings were reported in the SAS log.")
+      for (warn in sas_conditions$warnings) cli::cli_alert_warning(warn)
+      for (err in sas_conditions$errors) cli::cli_alert_danger(err)
+      cli::cli_rule()
+    })
+  }
   if (return_code!="0") {
     if (return_code==2) {
       # if error, display log regardless
-      display_SAS_log(sas_log)
-      warning(sprintf("The exit-status was %s. Please check the SAS-log for errors.",return_code))
+      #display_SAS_log(sas_log)
+      cli::cli_abort(call=NULL,"The exit-status was {return_code}. Please check the full SAS-log for errors (display_log=TRUE).")
     } else if (return_code==127) {
-      warning(sprintf("The exit-status was %s. This probably means that sas.exe is not in your PATH. Add the directory where sas.exe is located to your PATH or set it to working directory (not optimal).",return_code))
+      cli::cli_abort(call=NULL,"The exit-status was {return code}. This probably means that sas.exe is not in your PATH. Add the directory where sas.exe is located to your PATH or set it to working directory (not optimal).")
     } else {
-      warning(sprintf("The exit-status was %s.",return_code))
+      cli::cli_abort(call=NULL,"The exit-status was {return_code}.")
     }
   }
 

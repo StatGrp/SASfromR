@@ -20,4 +20,5 @@ RoxygenNote: 7.3.2
 Imports: 
     haven,
     readr,
-    stringr
+    stringr,
+    cli

@@ -2,6 +2,7 @@
 
 export(SASfromR)
 export(checkSASnames)
+export(check_sas_log)
 export(display_SAS_log)
 export(display_SAS_output)
 export(execute_SAS_script)
