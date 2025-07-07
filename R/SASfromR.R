@@ -121,7 +121,7 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   indata_header <- export_R_data(indata,
                                  in_path = in_path,
                                  xpt_version  = xpt_version,
-                                 repair_names = repair_names)
+                                 warn = TRUE)
 
   # add script_headers to sas_script and save to temporary file
   sas_script <- tempfile(pattern="sas_script_", fileext=".sas", tmpdir=in_path)
