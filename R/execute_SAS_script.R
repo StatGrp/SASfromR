@@ -47,6 +47,8 @@ execute_SAS_script <- function(sas_script,
     })
   }
   if (return_code!="0") {
+    # output sas log to console at this stage if requested
+    if (file.exists(sas_log) & display_log) display_SAS_log(sas_log)
     if (return_code==2) {
       # if error, display log regardless
       #display_SAS_log(sas_log)

@@ -13,7 +13,9 @@ export_R_data(indata = NULL, in_path, xpt_version = 8, warn = TRUE, ...)
 
 \item{xpt_version}{Version of xpt transfer file to use. Default (and recommended) is version 8.}
 
-\item{repair_names}{Logical, whether to repair/change column names in order to comply with SAS standards (a warning will be issued to tell you which names have been changed and what the new names are).}
+\item{warn}{Logical, whether to warn you of any changes to the variable names that were needed to comply with SAS standards.}
+
+\item{...}{Not used.}
 }
 \value{
 A character string that can be used in SAS programs to import the data.

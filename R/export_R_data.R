@@ -20,11 +20,9 @@ toSASnames <- function(x, type="variable", warn=TRUE, xpt_version=8,...) {
   y <- abbreviate(y,minlength=minlength)
   chng <- (y!=x)
   if (any(chng) & warn) {
-    varchanges <- paste0(paste(x[chng],y[chng],sep=" --> "),collapse="\n")
-    cli::cli_alert(
-      sprintf("The following %s names were changed to comply with SAS standards:\n%s",
-              type,varchanges)
-      )
+    namechanges <- paste(x[chng],y[chng],sep=" --> ")
+    cli::cli_alert("The following {type} names were changed to comply with SAS standards:\n")
+    for (namechange in namechanges) cli::cli_ul(namechange)
   }
   return(y)
 }
@@ -57,9 +55,11 @@ fct2fmt <- function(df) {
 #'
 #' @param df R data.frame to be exported to SAS
 #' @param sas_name Character. SAS name of data set
+#' @param libname Character. The libname to be used for the transport data set (must be at most 8 characters).
 #' @param directory Full file path to where temporary xport data is stored.
 #' @param xpt_version Which version of xpt to use, 5 or 8 (recommended).
 #' @param format_statement Optional format statement.
+#' @param ... Not used.
 #'
 #' @returns SAS script to import into SAS
 #' @export
@@ -72,11 +72,11 @@ RtoSAS <- function(df, sas_name, libname=NULL, directory=tempdir(), xpt_version=
   haven::write_xpt(df, path = tmp, version = xpt_version)
   # add import instructions to script header
   script_header <- c(
-    sprintf('libname %s xport "%s";',libname,tmp),
+    stringr::str_glue('libname {libname} xport "{tmp}";'),
     ifelse(xpt_version==5,
-           sprintf("data work.%s; set %s.%s; run;",sas_name, libname, sas_name),
-           sprintf("%%XPT2LOC(libref=work, filespec=%s);",libname)),
-    sprintf("data work.%s; set work.%s; format %s; run;",sas_name, sas_name, format_statement)
+           stringr::str_glue("data work.{sas_name}; set {libname}.{sas_name}; run;"),
+           stringr::str_glue("%XPT2LOC(libref=work, filespec={libname});")),
+    stringr::str_glue("data work.{sas_name}; set work.{sas_name}; format {format_statement}; run;")
   )
   return(script_header)
 }
@@ -89,7 +89,8 @@ RtoSAS <- function(df, sas_name, libname=NULL, directory=tempdir(), xpt_version=
 #' @param indata Input data, either a single data.frame or a named list of data.frames.
 #' @param in_path The full path to the directory where you wish to store it.
 #' @param xpt_version Version of xpt transfer file to use. Default (and recommended) is version 8.
-#' @param repair_names Logical, whether to repair/change column names in order to comply with SAS standards (a warning will be issued to tell you which names have been changed and what the new names are).
+#' @param warn Logical, whether to warn you of any changes to the variable names that were needed to comply with SAS standards.
+#' @param ... Not used.
 #'
 #' @returns A character string that can be used in SAS programs to import the data.
 #' @export
@@ -106,7 +107,7 @@ export_R_data <- function(indata=NULL, in_path, xpt_version=8, warn=TRUE,...) {
     # check input type
     if (!inherits(indata,"list") & !inherits(indata,"data.frame")) cli::cli_abort(call=NULL,"Only dataframes or named lists of dataframes allowed for argument indata")
     if (inherits(indata,"list") & is.null(names(indata))) cli::cli_abort(call=NULL,"Only named lists are allowed for argument indata")
-    # Handle case when only dataframe supplied
+    # Handle case when only data.frame supplied
     if (inherits(indata,"data.frame")) {
       indata <- list("indata" = indata)
       cli::cli_alert('Because no name was supplied for input datasets it will be named "indata".')

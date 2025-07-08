@@ -19,23 +19,23 @@ SASinPATH <- function() {
 #' SASfromR("proc contents data=sashelp.cars; run;", log_file = logfile, display_log=FALSE)
 #' display_SAS_log(logfile)}
 display_SAS_log <- function(sas_log) {
-  #cat("\n","\033[34mSAS log","\033[33m \n",
-  #    paste0(readLines(sas_log),collapse="\n") |> stringr::str_replace_all("\f","\n"),
-  #    "\033[0m\n")
-  outlines <- readLines(sas_log)
+  outlines <- readLines(sas_log) |> stringr::str_replace_all("\f\\d.*","\n")
+  outlines[stringr::str_detect(outlines,"The SAS System")] <- "\n"
   outlines_decorated <- lapply(outlines, function(x) {
-      x <- stringr::str_replace(x,"WARNING:","{.warning WARNING:}")
-      x <- stringr::str_replace(x,"ERROR:", "{.error ERROR:}")
-    })
+    x <- stringr::str_replace(x,"NOTE","\033[36mNOTE\033[37m")
+    x <- stringr::str_replace(x,"WARNING","\033[33mWARNING\033[37m")
+    x <- stringr::str_replace(x,"ERROR", "\033[31mERROR\033[37m")
+  })
+  paste0(outlines_decorated,collapse="\n")
   cli::cli({
     cli::cli_h1("SAS Log")
-    cli::cli_div(theme = list(span.error = list(color = "red"),
-                              span.warning = list(color="orange")))
-    for (line in outlines_decorated) {
-      cli::cli_text(line)
-    }
-    cli::cli_end()
+    cli::cli_div(class="verbatim",
+                 theme=list(.verbatim=list(color="gray"),
+                            rule = list(color="cyan",
+                                        "line-type"=".")))
+    cli::cli_verbatim(outlines_decorated)
     cli::cli_rule()
+    cli::cli_end()
   })
 }
 
@@ -52,20 +52,19 @@ display_SAS_log <- function(sas_log) {
 #' SASfromR("proc contents data=sashelp.cars; run;", output_file = outfile, display_output=FALSE)
 #' display_SAS_output(outfile)}
 display_SAS_output <- function(sas_output) {
-  #cat("\n","\033[34mSAS output","\033[36m \n","\n",
-  #    readLines(sas_output) |> stringr::str_replace_all("\f","\n") |> paste0(collapse="\n"),
-  #    "\033[0m\n")
   outlines <- readLines(sas_output) |>
+    stringr::str_replace_all("\f","\n") |>
     stringr::str_replace_all("\x83\x83","--") |>
     stringr::str_replace_all("\x83","|")
+  outlines[stringr::str_detect(outlines,"The SAS System")] <- "\n"
+  outlines <- paste0(outlines,collapse="\n")
   cli::cli({
     cli::cli_h1("SAS Output")
     cli::cli_div(class="verbatim",
                  theme=list(.verbatim=list(color="#fffed5"),
                             rule = list(color="cyan",
                                         "line-type"=".")))
-    cli::cli_text(outlines[1])
-    cli::cli_verbatim(outlines[-1])
+    cli::cli_verbatim(outlines)
     cli::cli_rule()
     cli::cli_end()
   })

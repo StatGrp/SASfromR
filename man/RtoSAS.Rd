@@ -19,11 +19,15 @@ RtoSAS(
 
 \item{sas_name}{Character. SAS name of data set}
 
+\item{libname}{Character. The libname to be used for the transport data set (must be at most 8 characters).}
+
 \item{directory}{Full file path to where temporary xport data is stored.}
 
 \item{xpt_version}{Which version of xpt to use, 5 or 8 (recommended).}
 
 \item{format_statement}{Optional format statement.}
+
+\item{...}{Not used.}
 }
 \value{
 SAS script to import into SAS

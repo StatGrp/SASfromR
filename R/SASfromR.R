@@ -116,7 +116,7 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   dir.create(out_path)
 
   # create header that specifies the output path for SAS
-  outdata_header <- sprintf('libname out "%s";',out_path)
+  outdata_header <- stringr::str_glue('libname out "{out_path}";')
   # export R data if it is supplied, create header for SAS to import
   indata_header <- export_R_data(indata,
                                  in_path = in_path,
