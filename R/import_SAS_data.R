@@ -1,3 +1,31 @@
+
+#' Convert attached formats to proper factor variables
+#'
+#' @param df data.frame (or object that can be coerced into data.frame) with SAS formats attached (as is the case after import via haven).
+#' @param fmts data.frame of formats (should contain variables FMTNAME, START and LABEL)
+#'
+#' @returns data.frame with factor variables.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' #not even trying
+#' }
+fmt2fct <- function(df,fmts) {
+  # get a vector of all format names
+  fmtnames <- unique(fmts$FMTNAME)
+  # for each variable, check if it has a format and if it exists in fmtnames
+  lapply(df, \(x) {
+    x_fmt <- attr(x,"format.sas")
+    if (!is.null(x_fmt) && x_fmt %in% fmtnames) {
+      fmt <- fmts[which(fmts$FMTNAME==x_fmt),]
+      # additional check to see if all elements of variable can be coerced to values in format
+      if (all(x %in% c(fmt$START,NA))) return(factor(x,levels=fmt$START,labels=fmt$LABEL))
+      else return(x)
+    } else return(x)
+  }) |> tibble::as_tibble()
+}
+
 #' Import SAS data sets from a directory
 #'
 #' @param out_path Full path to the directory where SAS data sets are stored.
@@ -10,6 +38,16 @@
 #' \dontrun{
 #' # should come up with a decent example here without relying on existing data}
 import_SAS_data <- function(out_path, outdata=NULL) {
+
+  # load stored formats if they exist
+  fmt_file <- file.path(out_path,"fmt","fmt.sas7bdat")
+  if (file.exists(fmt_file)) {
+    fmts <- haven::read_sas(fmt_file)
+    fmts <- fmts[c("FMTNAME","START","LABEL")]
+    fmts$START <- stringr::str_trim(fmts$START)
+  } else {
+    fmts <- NULL
+  }
 
   # check the output directory for existing files and compare with listed outdata
   if (is.null(outdata)) {
@@ -33,6 +71,9 @@ import_SAS_data <- function(out_path, outdata=NULL) {
       out_name <- names(outdata_paths)[i]
       out_file <- outdata_paths[i]
       outdata_list[[out_name]] <- haven::read_sas(out_file)
+      if (!is.null(fmts)) {
+        outdata_list[[out_name]] <- fmt2fct(outdata_list[[out_name]],fmts)
+      }
     }
   }
 

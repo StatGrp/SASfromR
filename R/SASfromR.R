@@ -114,9 +114,13 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   dir.create(in_path)
   out_path <- tempfile(pattern="outdata_", tmpdir=base_dir)
   dir.create(out_path)
+  out_path_fmt <- file.path(out_path,"fmt")
+  dir.create(out_path_fmt)
 
   # create header that specifies the output path for SAS
-  outdata_header <- stringr::str_glue('libname out "{out_path}";')
+  outdata_header <- stringr::str_glue('libname out "{out_path}"; libname fmt "{out_path_fmt}";')
+  # create footer for format exports
+  outdata_footer <- stringr::str_glue('proc format cntlout=fmt.fmt; run;')
   # export R data if it is supplied, create header for SAS to import
   indata_header <- export_R_data(indata,
                                  in_path = in_path,
@@ -125,7 +129,7 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
 
   # add script_headers to sas_script and save to temporary file
   sas_script <- tempfile(pattern="sas_script_", fileext=".sas", tmpdir=in_path)
-  readr::write_lines(c(outdata_header, indata_header, sas_code), file=sas_script)
+  readr::write_lines(c(outdata_header, indata_header, sas_code, outdata_footer), file=sas_script)
 
   # create output and log files if not specified
   if (is.null(output_file)) {

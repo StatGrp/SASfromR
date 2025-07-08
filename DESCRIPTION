@@ -21,4 +21,5 @@ Imports:
     haven,
     readr,
     stringr,
-    cli
+    cli,
+    tibble
