@@ -2,7 +2,7 @@
 % Please edit documentation in R/export_R_data.R
 \name{RtoSAS}
 \alias{RtoSAS}
-\title{Export a single data.frame to R (with optional format statment)}
+\title{Export a single data.frame to R (with optional format statement)}
 \usage{
 RtoSAS(
   df,
@@ -33,7 +33,7 @@ RtoSAS(
 SAS script to import into SAS
 }
 \description{
-Export a single data.frame to R (with optional format statment)
+Export a single data.frame to R (with optional format statement)
 }
 \examples{
 RtoSAS(mtcars,"mtcars")

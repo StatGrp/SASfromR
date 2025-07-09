@@ -1,0 +1,164 @@
+---
+title: "SASfromR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{SASfromR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(SASfromR)
+library(tibble)
+```
+
+# Basic usage
+
+The `SASfromR` package provides convenience functions to export R data so that it can be loaded into SAS, import SAS data into R, both utilizing the `haven` package. However, the main feature of `SASfromR` is the ability to execute SAS code (provided that SAS is installed on your system) from within R, while seamlessly passing data between R and SAS, all in one call.
+
+To illustrate its usage, consider this simple example:
+```{r}
+SASfromR(r"(
+         proc means data=mtcars_fromR;
+           var mpg;
+           ods output Summary=out.means;
+         run;
+         )", indata=list("mtcars_fromR"=mtcars))
+```
+Here, the first argument is a (raw)-string, containing the SAS-code we wish to execute, in this case a call to `proc means`. The second argument contains a named list of data sets we wish to make accessible to SAS. In this case, it contains only one element; the data set `mtcars` which we have given the name "mtcars_fromR" to highlight that it is being passed to SAS from R. It is this chosen name that must be used in the SAS code whenever you want to refer to this data set. It is also possible to pass a single data set without naming it, in which case it will automatically be given the name "indata" (see below).
+
+By default, the output from SAS is displayed in the console, but we also notice that the function returned a tibble containing the summary data caught in the `ods output`-statement. This is because we stored it in `out.means`, and the function automatically returns every SAS data set stored in the `out`-library.
+
+To illustrate how to use the function with an unnamed data set, we run the same SAS code again, but this time referring to the data set "indata", and suppressing the SAS output to reduce clutter:
+```{r}
+SASfromR(r"(
+         proc means data=indata;
+           var mpg;
+           ods output Summary=out.means;
+         run;
+         )",mtcars, display_output=FALSE)
+```
+The function `SASfromR` considers the SAS code to be the primary object (first argument) and passed data sets to be secondary objects (second argument). However, many times a more natural workflow might be to consider the passed data to be the primary object (first argument), and the SAS code a secondary object (second argument) containing information on what to do with the data. For these cases we also supply the function `withSAS`. This function also works better with pipes:
+```{r}
+mtcars |>
+  withSAS(r"(
+          proc means data=indata;
+            var mpg;
+            ods output Summary=out.means;
+          run;
+  )", display_output=FALSE)
+```
+
+## Adherence to SAS naming conventions
+Because SAS has more strict naming conventions than R, some conversion may be necessary when passing data sets from R to SAS. This package attempts to handle this automatically, while warning the user of any changes that have been made, as the following example illustrates:
+```{r}
+iris |>
+  withSAS(r"(
+          proc freq data=indata;
+            table Species;
+          run;
+  )")
+```
+
+
+## Factor variables and formats
+The package also attempts to automatically convert factor variables in R to SAS variables with corresponding formats, and the other way around. In the following example we turn the `am` variable in mtcars into a factor variable and pass it to `withSAS`. Note that the output data set now also has `am` as a factor variable:
+```{r, message=FALSE}
+mtcars_fct <- mtcars
+mtcars_fct$am <- factor(mtcars_fct$am, levels = c(0,1), labels = c("Manual","Automatic"))
+mtcars_fct |>
+  withSAS(r"(
+          proc means data=indata;
+            class am;
+            var mpg;
+          ods output Summary=out.means;
+          run;
+  )")
+```
+Behind the scenes, the function exported not only the data set `mtcars2` itself, but also a data set containing the information about the factor levels, which was then used to provide formats for the SAS variables. Finally, when the SAS data set is exported, the formats were also exported and combined to form factor variables when imported back into R. 
+
+## Error handling and debugging
+As with any type of programming, errors are bound to occur occasionally. For this reason, `SASfromR` intercepts the SAS log and tries to catch any errors and/or warnings and display them to the user. If these error messages are not enough to identify the problem, you can use the option `display_log=TRUE` in the function call (either in `SASfromR()` or `withSAS()`) to get a better idea of where the problem originates.  
+
+## Temporary storage, log- and output files
+When passing data sets between R and SAS, files are temporarily stored, and subsequently deleted when the function call is completed. By default, these temporary files are stored in the temporary directory created for each R session (use `tempdir()` to see where). Should you wish to use a different directory, you can specify this using the `base_dir=` argument. Note however, that even if you specify a different directory, the temporary files will still be deleted when the function call is complete (unless you use the option `remove_tempfiles=FALSE`, but this should only be used for debugging purposes).
+
+If you want to permanently store the SAS log- and/or output files, this can be done by specifying paths for the `log_file=` and/or `output_file=` arguments. When these are specified, the log- and output-files will not be deleted after a function call. Note, however, that they can be overwritten if you run the function again with the same arguments.
+
+## Utility functions for just passing data between SAS and R
+Under the hood, `SASfromR`(and `withSAS`, which is just a wrapper) uses the functions `export_R_data()` and `import_SAS_data()`. Both can also be used by themselves. The function `export_R_data()` exports a list of R data.frames to SAS transport files (.xpt) and returns character vectors containing SAS code to import the data into SAS (which can be copy-pasted directly into a SAS program), while `import_SAS_data()` takes as first argument the path to a directory containing .sas7bdat files.
+
+# Advanced usage
+*Note: Usually I prefer to use tidyverse syntax and purrr for iteration. However, using these packages in the vignette would also add these as dependencies for the SASfromR-package as a whole. Therefore I try to stick with syntax from base R.*
+
+## Combining SAS scripts to compile more complex scripts.
+To illustrate some more advanced use case, while still keeping the example minimal, let's consider a situation where we want to investigate the effect of transmission type (`am`: manual or automatic) on both miles per gallon (`mpg`) and horse powers (`hp`). Let's also say that we want to estimate the effect both using a crude model as well as a model adjusted by the number of cylinders (`cyl`) and the weight (`wt`). 
+
+In `SASfromR` this can be accomplished with the following lines, which we shall explain in more detail in a second.
+```{r, message=FALSE}
+#initiate empty estimates data
+sas_init <- "data estimates; length response model $15; stop; run;" 
+# create combinations of outcomes and models (specifications)
+specs <- expand.grid(response = c("mpg","hp"), model = c("crude", "adjusted"))
+# add covariates depending on model
+specs$covariates <- sapply(specs$model, \(x) ifelse(x=="adjusted","cyl wt"," "))
+# model template
+template <- r"(
+  proc glimmix data=indata;
+    class am(ref='Manual');
+    model {response} = am {covariates} / solution;
+    ods output ParameterEstimates = est;
+  run;
+  data est; set est(where=(Effect='am'));
+    response = '{response}';
+    model = '{model}';
+  run;
+  data estimates; set estimates est; run;
+)"
+# apply specifications to template
+sas_models <- with(specs, stringr::str_glue(template))
+# output estimates data
+sas_exit <- "data out.estimates; set estimates; run;"
+# run the SAS code
+mtcars_fct |> withSAS(c(sas_init, sas_models, sas_exit), display_output=FALSE)
+```
+
+We can see that in the crude model, an automatic transmission allows you to drive about 7 miles more per gallon, with a decrease of 33 horse powers. While in the model adjusted by weight and number of cylinders the effect on miles per gallon is negligible and the effect on horse powers is reversed.
+
+In any case, this example is meant to illustrate how easy it is to compose more complex SAS scripts form simpler components. The key here is that `withSAS` (and `SASfromR`) accepts character **vectors**, i.e. vectors composed of smaller scripts that it then puts together into one larger script.
+
+In this example, the first script `sas_init` simply creates and empty data set in SAS, which we then append the results from our model to. Each model is based on the `template` which contains fields `{response}`, `{covariates}` and `{model}`. These fields are filled `with` the contents of the data.frame `specs` row by row. Thus `sas_models` is a vector of 4 model scripts (one for each combination of response and model). Finally, the last script, `sas_exit`, simply stores the 'estimates' data set to the `out` library where it can be collected and imported into R. The whole thing is put together into one vector of scripts through `c(sas_init, sas_models, sas_exit)`. 
+
+This type of usage is similar to macro-programming in SAS, but allows for the logic to be handled by R (which is more flexible and convenient in my opinion).
+
+## SAS scripts in sequence or in parallel
+The previous analyses can be carried out even more elegantly if we execute the script for each model individually, as in the example below (*Note: using tidyverse syntax and `purrr::map` this would be even more elegant*).
+
+```{r, message=FALSE}
+# define template
+template <- r"(
+  proc glimmix data=indata;
+    class am(ref='Manual');
+    model {response} = am {covariates} / solution;
+    ods output ParameterEstimates = out.est;
+  run;
+)"
+# generate vector of scripts
+scripts <- with(specs, stringr::str_glue(template))
+# run withSAS once for each script
+estimates <- lapply(scripts, \(script) withSAS(mtcars_fct, script, display_output=FALSE))
+# combine the results
+estimates <- do.call(rbind,estimates)
+# show only the effect of transmission
+estimates[estimates$Effect=="am",] |> as_tibble()
+```
+The drawback of using this method is that each time you run `withSAS` it passes the input data `mtcars_fct` and output data `est` back and forth between SAS and R.
+
+The advantage of using this method is that you can use the technique to parallelize the execution, for example by using `furrr::future_map()` instead of `lapply`. This is not illustrated here because it would introduce additional dependencies for the package.

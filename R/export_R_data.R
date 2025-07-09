@@ -51,7 +51,7 @@ fct2fmt <- function(df) {
 }
 
 
-#' Export a single data.frame to R (with optional format statment)
+#' Export a single data.frame to R (with optional format statement)
 #'
 #' @param df R data.frame to be exported to SAS
 #' @param sas_name Character. SAS name of data set
