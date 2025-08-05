@@ -15,7 +15,8 @@ toSASnames <- function(x, type="variable", warn=TRUE, xpt_version=8,...) {
   minlength <- switch(type,
                       variable = ifelse(xpt_version==5,8L,32L),
                       dataset = 32L,
-                      libname = 7L)
+                      libname = 7L,
+                      format = 6L)
   y <- stringr::str_replace_all(x,"[^0-9a-zA-Z_]","_")
   y <- abbreviate(y,minlength=minlength)
   chng <- (y!=x)
@@ -23,6 +24,14 @@ toSASnames <- function(x, type="variable", warn=TRUE, xpt_version=8,...) {
     namechanges <- paste(x[chng],y[chng],sep=" --> ")
     cli::cli_alert("The following {type} names were changed to comply with SAS standards:\n")
     for (namechange in namechanges) cli::cli_ul(namechange)
+  }
+  # if libname, make sure that it does not end in a digit, and if so replace with corresponding letter
+  if (type=="format") {
+    #y <- dplyr::if_else(grepl("\\d$",y),
+    #             paste0(substr(y,1,nchar(y)-1),
+    #                    letters[as.integer(substr(y,nchar(y),nchar(y)))]),
+    #             y)
+    y <- paste0(y,"f") # simpler way to make sure it does not end in digit
   }
   return(y)
 }
@@ -42,7 +51,9 @@ fct2fmt <- function(df) {
   fct_names <- names(df[sapply(df,is.factor)])
   fmt_data <- lapply(fct_names, \(x) {
     lbls <- attr(df[[x]],"levels")
-    data.frame(fmtname = rep(abbreviate(x),length(lbls)),
+    fmts <- toSASnames(x, type="format", warn=FALSE) #improved from abbreviate(x)
+    if (any(nchar(fmts)>7)) cli::cli_abort(call=NULL,"Unable to create unique format names for factor variables. Please attempt to shorten the names of the variables or make them more distinct from each other.")
+    data.frame(fmtname = rep(fmts,length(lbls)),
                start = 1:length(lbls),
                label = lbls,
                varname = rep(x,length(lbls)))
