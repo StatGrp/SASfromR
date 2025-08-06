@@ -23,7 +23,7 @@ fmt2fct <- function(df,fmts) {
       if (all(x %in% c(fmt$START,NA))) return(factor(x,levels=fmt$START,labels=fmt$LABEL))
       else return(x)
     } else return(x)
-  }) |> tibble::as_tibble()
+  }) |> tibble::as_tibble() |> haven::zap_formats()
 }
 
 #' Import SAS data sets from a directory

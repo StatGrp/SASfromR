@@ -112,15 +112,17 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   # create paths to indata and outdata directories in current temporary directory
   in_path <- tempfile(pattern="indata_", tmpdir=base_dir)
   dir.create(in_path)
+  on.exit({if (remove_tempfiles) {unlink(in_path, recursive=TRUE)}}, add=TRUE)
   out_path <- tempfile(pattern="outdata_", tmpdir=base_dir)
   dir.create(out_path)
+  on.exit({if (remove_tempfiles) {unlink(out_path, recursive=TRUE)}}, add=TRUE)
   out_path_fmt <- file.path(out_path,"fmt")
   dir.create(out_path_fmt)
 
   # create header that specifies the output path for SAS
   outdata_header <- stringr::str_glue('libname out "{out_path}"; libname fmt "{out_path_fmt}";')
   # create footer for format exports
-  outdata_footer <- stringr::str_glue('proc format cntlout=fmt.fmt; run;')
+  outdata_footer <- do_if_cexists_SAS("work.formats",'proc format cntlout=fmt.fmt; run;')
   # export R data if it is supplied, create header for SAS to import
   indata_header <- export_R_data(indata,
                                  in_path = in_path,
@@ -150,14 +152,6 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
                      sas_output = sas_output,
                      display_output = display_output,
                      display_log = display_log)
-
-  # remove temporary files and directories
-  on.exit({
-    if (remove_tempfiles) {
-      unlink(in_path, recursive=TRUE)
-      unlink(out_path, recursive=TRUE)
-    }
-  })
 
   # import all data from SAS
   return(import_SAS_data(out_path, outdata))

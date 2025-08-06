@@ -88,3 +88,71 @@ check_sas_log <- function(sas_log) {
   warns <- outlines[stringr::str_detect(outlines,"WARNING")]
   return(list(errors = errs, warnings=warns))
 }
+
+
+
+abbreviateSAS <- function(names_old, minlength=7L, allow_end_num=FALSE, allow_start_underscore=FALSE) {
+
+  if (minlength<=0L) cli::cli_abort("{.variable {minlength}} too small.")
+  names_new <- names_old;
+  # only alphanumeric and underscore
+  names_new <- stringr::str_replace_all(names_old,"[^0-9a-zA-Z_]","_")
+  if (!allow_start_underscore) {
+    names_new <- stringr::str_replace_all(names_new,"^_","")
+  }
+  # check length and duplicates
+  dups <- duplicated(names_new)
+  longs <- (nchar(names_new)>=minlength)
+
+  # no alteration if ok
+  if (!any(dups) & !any(longs)) {
+    return(names_new)
+  }
+  # starting point is output from abbreviate
+  names_new <- abbreviate(names_new, minlength=minlength, strict=TRUE)
+  # then change
+  if (!allow_end_num) {
+    start <- substr(names_new, 1, nchar(names_new)-1)
+    end <- substr(names_new, nchar(names_new), nchar(names_new))
+    end <- sapply(end, \(x) if(grepl("\\d$",x)) {letters[as.integer(x)+1]} else {x})
+    names_new <- paste0(start,end)
+  }
+  # check length and duplicates
+  dups <- duplicated(names_new)
+  if (!any(dups)) {
+    return(names_new)
+  } else {
+    unique_dups <- unique(names_new[dups])
+    #idx_list <- lapply(unique_dups, \(x) match(x,names_new))
+    for (dup_name in unique_dups) {
+      dup_idx <- match(dup_name,names_new)
+      dup_names_new <- sapply(1:length(dup_idx),\(i) stringr::str_replace(dup_name,"\\w$",letters[i]))
+      names_new[dup_idx] <- dup_names_new
+    }
+    return(names_new)
+  }
+}
+
+
+do_if_exists_SAS <- function(dname,do_this) {
+  stringr::str_glue(r"(
+  %macro do_if_exists(data);
+   %if %sysfunc(exist(&data.)) %then %do;
+    {do_this}
+   %end;
+  %mend do_if_exists;
+  %do_if_exists({dname});
+  )")
+}
+do_if_cexists_SAS <- function(dname,do_this) {
+  stringr::str_glue(r"(
+  %macro do_if_cexists(data);
+   %if %sysfunc(cexist(&data.)) %then %do;
+    {do_this}
+   %end;
+  %mend do_if_cexists;
+  %do_if_cexists({dname});
+  )")
+}
+
+

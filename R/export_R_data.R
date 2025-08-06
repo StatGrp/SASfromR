@@ -16,22 +16,25 @@ toSASnames <- function(x, type="variable", warn=TRUE, xpt_version=8,...) {
                       variable = ifelse(xpt_version==5,8L,32L),
                       dataset = 32L,
                       libname = 7L,
-                      format = 6L)
-  y <- stringr::str_replace_all(x,"[^0-9a-zA-Z_]","_")
-  y <- abbreviate(y,minlength=minlength)
+                      format = 7L)
+  # apply stronger rules to format
+  if (type=="format") {
+    allow_start_underscore <- FALSE
+    allow_end_num <- FALSE
+  } else if (type=="libname") {
+    allow_start_underscore <- FALSE
+  } else {
+    allow_start_underscore <- TRUE
+    allow_end_num <- TRUE
+  }
+  y <- abbreviateSAS(x, minlength=minlength,
+                     allow_start_underscore=allow_start_underscore,
+                     allow_end_num = allow_end_num)
   chng <- (y!=x)
   if (any(chng) & warn) {
     namechanges <- paste(x[chng],y[chng],sep=" --> ")
     cli::cli_alert("The following {type} names were changed to comply with SAS standards:\n")
     for (namechange in namechanges) cli::cli_ul(namechange)
-  }
-  # if libname, make sure that it does not end in a digit, and if so replace with corresponding letter
-  if (type=="format") {
-    #y <- dplyr::if_else(grepl("\\d$",y),
-    #             paste0(substr(y,1,nchar(y)-1),
-    #                    letters[as.integer(substr(y,nchar(y),nchar(y)))]),
-    #             y)
-    y <- paste0(y,"f") # simpler way to make sure it does not end in digit
   }
   return(y)
 }
@@ -49,16 +52,21 @@ toSASnames <- function(x, type="variable", warn=TRUE, xpt_version=8,...) {
 #' fct2fmt(iris)
 fct2fmt <- function(df) {
   fct_names <- names(df[sapply(df,is.factor)])
-  fmt_data <- lapply(fct_names, \(x) {
-    lbls <- attr(df[[x]],"levels")
-    fmts <- toSASnames(x, type="format", warn=FALSE) #improved from abbreviate(x)
-    if (any(nchar(fmts)>7)) cli::cli_abort(call=NULL,"Unable to create unique format names for factor variables. Please attempt to shorten the names of the variables or make them more distinct from each other.")
-    data.frame(fmtname = rep(fmts,length(lbls)),
-               start = 1:length(lbls),
-               label = lbls,
-               varname = rep(x,length(lbls)))
-  })
-  do.call(rbind,fmt_data)
+  if (length(fct_names)<=0) {
+    return(NULL)
+  } else {
+    fmt_names <- toSASnames(fct_names, type="format", warn=FALSE)
+    fmt_data <- lapply(1:length(fct_names), \(n) {
+      x <- fct_names[[n]]
+      lbls <- attr(df[[x]],"levels")
+      fmts <- fmt_names[[n]]
+      data.frame(fmtname = rep(fmts,length(lbls)),
+                 start   = 1:length(lbls),
+                 label   = lbls,
+                 varname = rep(x,length(lbls)))
+    })
+    do.call(rbind,fmt_data)
+  }
 }
 
 
@@ -87,7 +95,9 @@ RtoSAS <- function(df, sas_name, libname=NULL, directory=tempdir(), xpt_version=
     ifelse(xpt_version==5,
            stringr::str_glue("data work.{sas_name}; set {libname}.{sas_name}; run;"),
            stringr::str_glue("%XPT2LOC(libref=work, filespec={libname});")),
-    stringr::str_glue("data work.{sas_name}; set work.{sas_name}; format {format_statement}; run;")
+    ifelse(is.null(format_statement),
+           stringr::str_glue("data work.{sas_name}; set work.{sas_name}; run;"),
+           stringr::str_glue("data work.{sas_name}; set work.{sas_name}; format {format_statement}; run;"))
   )
   return(script_header)
 }
@@ -161,7 +171,10 @@ export_R_data <- function(indata=NULL, in_path, xpt_version=8, warn=TRUE,...) {
                                   in_path,
                                   xpt_version=xpt_version),
                            sprintf("proc format cntlin=%s; run;",df_namef))
-        format_statement <- paste0(unique(sprintf("%s %s.",fmt_data$varname,fmt_data$fmtname)),
+        # create format statment
+        fmtdata <- fmt_data[c("varname","fmtname")]
+        fmtdata <- fmtdata[!duplicated(fmtdata),]
+        format_statement <- paste0(unique(sprintf("%s %s.",fmtdata$varname,fmtdata$fmtname)),
                                    collapse=" ")
       } else {
         format_statement<-NULL
