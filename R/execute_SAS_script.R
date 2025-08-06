@@ -35,20 +35,27 @@ execute_SAS_script <- function(sas_script,
   #stdout=file.path(getwd(),"system.out"),
   #stderr=file.path(getwd(),"system.err"))
 
+  # output sas log to console (if requested)
+  if (file.exists(sas_log) & display_log) display_SAS_log(sas_log)
   # Handle errors (should be improved)
   sas_conditions <- check_sas_log(sas_log)
-  if (length(sas_conditions$warnings) | length(sas_conditions$errors)) {
+  if (length(sas_conditions)>0) {
     cli::cli({
       cli::cli_rule()
       cli::cli_alert("The following errors and/or warnings were reported in the SAS log.")
-      for (warn in sas_conditions$warnings) cli::cli_alert_warning(warn)
-      for (err in sas_conditions$errors) cli::cli_alert_danger(err)
+      for (cond in sas_conditions) {
+        if (stringr::str_detect(cond,"^ERROR")) {
+          cli::cli_alert_danger(cond)
+        } else {
+          cli::cli_alert_warning(cond)
+        }
+      }
       cli::cli_rule()
     })
   }
   if (return_code!="0") {
     # output sas log to console at this stage if requested
-    if (file.exists(sas_log) & display_log) display_SAS_log(sas_log)
+    #if (file.exists(sas_log) & display_log) display_SAS_log(sas_log)
     if (return_code==2) {
       # if error, display log regardless
       #display_SAS_log(sas_log)
@@ -60,8 +67,6 @@ execute_SAS_script <- function(sas_script,
     }
   }
 
-  # output sas log to console
-  if (file.exists(sas_log) & display_log) display_SAS_log(sas_log)
   # output from sas to console
   if (file.exists(sas_output) & display_output) display_SAS_output(sas_output)
 

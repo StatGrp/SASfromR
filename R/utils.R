@@ -84,9 +84,8 @@ display_SAS_output <- function(sas_output) {
 #' display_SAS_log(logfile)}
 check_sas_log <- function(sas_log) {
   outlines <- readLines(sas_log)
-  errs <- outlines[stringr::str_detect(outlines,"ERROR")]
-  warns <- outlines[stringr::str_detect(outlines,"WARNING")]
-  return(list(errors = errs, warnings=warns))
+  conds <- outlines[stringr::str_detect(outlines,"^(ERROR|WARNING).*")]
+  return(conds)
 }
 
 
