@@ -19,7 +19,7 @@ SASinPATH <- function() {
 #' SASfromR("proc contents data=sashelp.cars; run;", log_file = logfile, display_log=FALSE)
 #' display_SAS_log(logfile)}
 display_SAS_log <- function(sas_log) {
-  outlines <- readLines(sas_log) |> stringr::str_replace_all("\f\\d.*","\n")
+  outlines <- readLines(sas_log, skipNul=TRUE) |> stringr::str_replace_all("\f\\d.*","\n")
   outlines[stringr::str_detect(outlines,"The SAS System")] <- "\n"
   outlines_decorated <- lapply(outlines, function(x) {
     x <- stringr::str_replace(x,"NOTE","\033[36mNOTE\033[37m")
@@ -83,7 +83,7 @@ display_SAS_output <- function(sas_output) {
 #' SASfromR("proc contents data=sashelp.cars; run;", log_file = logfile, display_log=FALSE)
 #' display_SAS_log(logfile)}
 check_sas_log <- function(sas_log) {
-  outlines <- readLines(sas_log)
+  outlines <- readLines(sas_log, skipNul=TRUE)
   conds <- outlines[stringr::str_detect(outlines,"^(ERROR|WARNING).*")]
   return(conds)
 }

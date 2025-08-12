@@ -111,6 +111,7 @@ RtoSAS <- function(df, sas_name, libname=NULL, directory=tempdir(), xpt_version=
 #' @param in_path The full path to the directory where you wish to store it.
 #' @param xpt_version Version of xpt transfer file to use. Default (and recommended) is version 8.
 #' @param warn Logical, whether to warn you of any changes to the variable names that were needed to comply with SAS standards.
+#' @param factor_format_conv Logical, whether to automatically convert R-factors to SAS-formats.
 #' @param ... Not used.
 #'
 #' @returns A character string that can be used in SAS programs to import the data.
@@ -118,7 +119,7 @@ RtoSAS <- function(df, sas_name, libname=NULL, directory=tempdir(), xpt_version=
 #'
 #' @examples
 #' export_R_data(mtcars,in_path=tempdir())
-export_R_data <- function(indata=NULL, in_path, xpt_version=8, warn=TRUE,...) {
+export_R_data <- function(indata=NULL, in_path, xpt_version=8, warn=TRUE, factor_format_conv=TRUE,...) {
 
   # initialize script_header
   script_header <- character(0)
@@ -149,7 +150,7 @@ export_R_data <- function(indata=NULL, in_path, xpt_version=8, warn=TRUE,...) {
     if (any(nchar(libnames)>7)) cli::cli_abort(call=NULL,"Unable to create unique libnames for the supplied datasets. Please attempt to shorten the names of the datasets.")
     # for each entry in indata
     for (i in 1:length(indata)) {
-      df <- indata[[i]]
+      df <- indata[[i]] |> haven::zap_formats() # make sure data does not contain old formats
       df_name <- names(indata)[i]
       libname <- libnames[i]
       # check names of columns
@@ -159,7 +160,12 @@ export_R_data <- function(indata=NULL, in_path, xpt_version=8, warn=TRUE,...) {
                               xpt_version=xpt_version,
                               ...)
       # create format dataset (if there are factor variables)
-      fmt_data <- fct2fmt(df)
+      if (factor_format_conv) {
+        fmt_data <- fct2fmt(df)
+      } else {
+        fmt_data <- NULL
+      }
+
       # if there are factor variables, export fmt_data and to import instructions
       if (!is.null(fmt_data)) {
         df_namef <- paste0(df_name,"f")

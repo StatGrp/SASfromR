@@ -30,6 +30,7 @@ fmt2fct <- function(df,fmts) {
 #'
 #' @param out_path Full path to the directory where SAS data sets are stored.
 #' @param outdata Character vector of data sets (without .sas7bdat extension) that you want to import. If NULL, all found data sets will be imported.
+#' @param factor_format_conv Logical, whether to automatically convert SAS-formats to R-factors.
 #'
 #' @returns A data.frame or named list of data.frames imported from SAS.
 #' @export
@@ -37,11 +38,11 @@ fmt2fct <- function(df,fmts) {
 #' @examples
 #' \dontrun{
 #' # should come up with a decent example here without relying on existing data}
-import_SAS_data <- function(out_path, outdata=NULL) {
+import_SAS_data <- function(out_path, outdata=NULL, factor_format_conv=TRUE) {
 
   # load stored formats if they exist
   fmt_file <- file.path(out_path,"fmt","fmt.sas7bdat")
-  if (file.exists(fmt_file)) {
+  if (file.exists(fmt_file) & factor_format_conv) {
     fmts <- haven::read_sas(fmt_file)
     fmts <- fmts[c("FMTNAME","START","LABEL")]
     fmts$START <- stringr::str_trim(fmts$START)

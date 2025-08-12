@@ -23,6 +23,7 @@
 #' @param display_output Logical, whether to display the SAS output in the R console.
 #' @param remove_tempfiles Logical, whether to remove temporary files (e.g. SAS transport files, .sas7bdat-files, generated .sas-files, and log- or output-files unless they have been given more persistent paths through `output_file` and `log_file` arguments). Note: `remove_tempfiles=TRUE` is useful for debugging, but is not intended to be used on a regular basis. Temporary files are automatically removed when the current R-session ends.
 #' @param repair_names Logical, whether to automatically repair the names of incoming data sets to adhere to SAS standards. If `FALSE` non-compliant names will throw an error.
+#' @param factor_format_conv Logical, whether to automatically convert R-factors to SAS-formats and vice versa.
 #'
 #' @returns A data set or named list of data sets, corresponding to those produced by SAS and placed in the "out"-library (unless otherwise specified in `outdata`. If no data sets are to be returned, SASfromR will return NULL (silently).
 #' @export
@@ -107,7 +108,8 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   xpt_version = 8, sas_path = NULL, base_dir=tempdir(),
   output_file=NULL, log_file=NULL,
   display_log=FALSE, display_output=TRUE,
-  remove_tempfiles=TRUE, repair_names=TRUE) {
+  remove_tempfiles=TRUE, repair_names=TRUE,
+  factor_format_conv=TRUE) {
 
   # create paths to indata and outdata directories in current temporary directory
   in_path <- tempfile(pattern="indata_", tmpdir=base_dir)
@@ -116,18 +118,25 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   out_path <- tempfile(pattern="outdata_", tmpdir=base_dir)
   dir.create(out_path)
   on.exit({if (remove_tempfiles) {unlink(out_path, recursive=TRUE)}}, add=TRUE)
-  out_path_fmt <- file.path(out_path,"fmt")
-  dir.create(out_path_fmt)
+  #if (factor_format_conv) {
+    out_path_fmt <- file.path(out_path,"fmt")
+    dir.create(out_path_fmt)
+  #}
 
   # create header that specifies the output path for SAS
-  outdata_header <- stringr::str_glue('libname out "{out_path}"; libname fmt "{out_path_fmt}";')
+  #if (factor_format_conv) {
+    outdata_header <- stringr::str_glue('libname out "{out_path}"; libname fmt "{out_path_fmt}";')
+  #} else {
+  #  outdata_header <- stringr::str_glue('libname out "{out_path}";')
+  #}
   # create footer for format exports
   outdata_footer <- do_if_cexists_SAS("work.formats",'proc format cntlout=fmt.fmt; run;')
   # export R data if it is supplied, create header for SAS to import
   indata_header <- export_R_data(indata,
                                  in_path = in_path,
                                  xpt_version  = xpt_version,
-                                 warn = TRUE)
+                                 warn = TRUE,
+                                 factor_format_conv = factor_format_conv)
 
   # add script_headers to sas_script and save to temporary file
   sas_script <- tempfile(pattern="sas_script_", fileext=".sas", tmpdir=in_path)
@@ -154,7 +163,7 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
                      display_log = display_log)
 
   # import all data from SAS
-  return(import_SAS_data(out_path, outdata))
+  return(import_SAS_data(out_path, outdata, factor_format_conv = factor_format_conv))
 
 }
 
