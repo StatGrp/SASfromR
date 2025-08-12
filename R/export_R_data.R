@@ -23,6 +23,7 @@ toSASnames <- function(x, type="variable", warn=TRUE, xpt_version=8,...) {
     allow_end_num <- FALSE
   } else if (type=="libname") {
     allow_start_underscore <- FALSE
+    allow_end_num <- TRUE
   } else {
     allow_start_underscore <- TRUE
     allow_end_num <- TRUE

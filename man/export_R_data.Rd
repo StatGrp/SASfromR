@@ -4,7 +4,14 @@
 \alias{export_R_data}
 \title{Export R data to SAS transport file}
 \usage{
-export_R_data(indata = NULL, in_path, xpt_version = 8, warn = TRUE, ...)
+export_R_data(
+  indata = NULL,
+  in_path,
+  xpt_version = 8,
+  warn = TRUE,
+  factor_format_conv = TRUE,
+  ...
+)
 }
 \arguments{
 \item{indata}{Input data, either a single data.frame or a named list of data.frames.}
@@ -14,6 +21,8 @@ export_R_data(indata = NULL, in_path, xpt_version = 8, warn = TRUE, ...)
 \item{xpt_version}{Version of xpt transfer file to use. Default (and recommended) is version 8.}
 
 \item{warn}{Logical, whether to warn you of any changes to the variable names that were needed to comply with SAS standards.}
+
+\item{factor_format_conv}{Logical, whether to automatically convert R-factors to SAS-formats.}
 
 \item{...}{Not used.}
 }

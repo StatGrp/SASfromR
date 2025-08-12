@@ -4,12 +4,14 @@
 \alias{import_SAS_data}
 \title{Import SAS data sets from a directory}
 \usage{
-import_SAS_data(out_path, outdata = NULL)
+import_SAS_data(out_path, outdata = NULL, factor_format_conv = TRUE)
 }
 \arguments{
 \item{out_path}{Full path to the directory where SAS data sets are stored.}
 
 \item{outdata}{Character vector of data sets (without .sas7bdat extension) that you want to import. If NULL, all found data sets will be imported.}
+
+\item{factor_format_conv}{Logical, whether to automatically convert SAS-formats to R-factors.}
 }
 \value{
 A data.frame or named list of data.frames imported from SAS.
