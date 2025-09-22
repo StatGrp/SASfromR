@@ -29,7 +29,7 @@ execute_SAS_script <- function(sas_script,
   # produce command for script
   sas.exe <- ifelse(is.null(sas_path),"sas.exe",sas_path)
   return_code <- system2(sas.exe,
-                         c("-nosplash", "-batch", "-sysin", sas_script,"-log", sas_log, "-print",sas_output),
+                         c("-nosplash","-RSASUSER", "-batch", "-sysin", sas_script,"-log", sas_log, "-print",sas_output),
                          stdout = FALSE,
                          stderr = FALSE)
   #stdout=file.path(getwd(),"system.out"),
