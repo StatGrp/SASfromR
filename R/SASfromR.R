@@ -109,7 +109,7 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   output_file=NULL, log_file=NULL,
   display_log=FALSE, display_output=TRUE,
   remove_tempfiles=TRUE, repair_names=TRUE,
-  factor_format_conv=TRUE) {
+  factor_format_conv=TRUE, warn=TRUE) {
 
   # create paths to indata and outdata directories in current temporary directory
   in_path <- tempfile(pattern="indata_", tmpdir=base_dir)
@@ -118,6 +118,17 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   out_path <- tempfile(pattern="outdata_", tmpdir=base_dir)
   dir.create(out_path)
   on.exit({if (remove_tempfiles) {unlink(out_path, recursive=TRUE)}}, add=TRUE)
+  html_path <- tempfile(pattern="html_", tmpdir=base_dir)
+  dir.create(html_path)
+  fig_path <- file.path(html_path,"figs")
+  dir.create(fig_path)
+  on.exit({
+    html_file <- file.path(html_path,"sashtml.htm")
+    if (file.exists(html_file)) {
+      rstudioapi::viewer(html_file)
+    }
+    #if (remove_tempfiles) {unlink(html_path, recursive=TRUE)}
+    }, add=TRUE)
   #if (factor_format_conv) {
     out_path_fmt <- file.path(out_path,"fmt")
     dir.create(out_path_fmt)
@@ -135,12 +146,13 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   indata_header <- export_R_data(indata,
                                  in_path = in_path,
                                  xpt_version  = xpt_version,
-                                 warn = TRUE,
+                                 warn = warn,
                                  factor_format_conv = factor_format_conv)
 
+  figs_header <- stringr::str_glue('ods _all_ close; ods html path="{html_path}" gpath="{fig_path}" (url="figs/");');
   # add script_headers to sas_script and save to temporary file
   sas_script <- tempfile(pattern="sas_script_", fileext=".sas", tmpdir=in_path)
-  readr::write_lines(c(outdata_header, indata_header, sas_code, outdata_footer), file=sas_script)
+  readr::write_lines(c(outdata_header, indata_header, figs_header, sas_code, outdata_footer), file=sas_script)
 
   # create output and log files if not specified
   if (is.null(output_file)) {
@@ -161,6 +173,7 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
                      sas_output = sas_output,
                      display_output = display_output,
                      display_log = display_log)
+
 
   # import all data from SAS
   return(import_SAS_data(out_path, outdata, factor_format_conv = factor_format_conv))

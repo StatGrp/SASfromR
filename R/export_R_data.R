@@ -133,7 +133,9 @@ export_R_data <- function(indata=NULL, in_path, xpt_version=8, warn=TRUE, factor
     # Handle case when only data.frame supplied
     if (inherits(indata,"data.frame")) {
       indata <- list("indata" = indata)
-      cli::cli_alert('Because no name was supplied for input datasets it will be named "indata".')
+      if (warn) {
+        cli::cli_alert('Because no name was supplied for input datasets it will be named "indata".')
+      }
     }
     # check data set names
     names(indata) <- toSASnames(names(indata),
