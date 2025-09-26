@@ -108,10 +108,11 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   xpt_version = 8, sas_path = NULL, base_dir=tempdir(),
   output_file=NULL, log_file=NULL,
   display_log=FALSE, display_output=TRUE,
+  html_output=FALSE,
   remove_tempfiles=TRUE, repair_names=TRUE,
   factor_format_conv=TRUE, warn=TRUE) {
 
-  # create paths to indata and outdata directories in current temporary directory
+  # create paths to indata, outdata, html, figures and format directories in current temporary directory
   in_path <- tempfile(pattern="indata_", tmpdir=base_dir)
   dir.create(in_path)
   on.exit({if (remove_tempfiles) {unlink(in_path, recursive=TRUE)}}, add=TRUE)
@@ -124,8 +125,10 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
   dir.create(fig_path)
   on.exit({
     html_file <- file.path(html_path,"sashtml.htm")
-    if (file.exists(html_file)) {
+    if (html_output & file.exists(html_file)) {
       rstudioapi::viewer(html_file)
+    } else {
+      plot_sas_figures(fig_path)
     }
     #if (remove_tempfiles) {unlink(html_path, recursive=TRUE)}
     }, add=TRUE)
@@ -148,8 +151,12 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
                                  xpt_version  = xpt_version,
                                  warn = warn,
                                  factor_format_conv = factor_format_conv)
+  if (html_output) {
+    figs_header <- stringr::str_glue('ods _all_ close; ods html path="{html_path}" gpath="{fig_path}" (url="figs/");');
+  } else {
+    figs_header <- stringr::str_glue('ods _all_ close; ods listing gpath="{fig_path}";')
+  }
 
-  figs_header <- stringr::str_glue('ods _all_ close; ods html path="{html_path}" gpath="{fig_path}" (url="figs/");');
   # add script_headers to sas_script and save to temporary file
   sas_script <- tempfile(pattern="sas_script_", fileext=".sas", tmpdir=in_path)
   readr::write_lines(c(outdata_header, indata_header, figs_header, sas_code, outdata_footer), file=sas_script)

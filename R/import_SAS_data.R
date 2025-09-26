@@ -89,6 +89,20 @@ import_SAS_data <- function(out_path, outdata=NULL, factor_format_conv=TRUE) {
 }
 
 
-
+#' Plot SAS-generated images in plot-pane.
+#'
+#' @param dir Path to directory where SAS-generated images are stored.
+#'
+#' @returns NULL
+#' @export
+#'
+#' @examples
+plot_sas_figures <- function(dir) {
+  files <- list.files(dir, full.names=TRUE)
+  for (file in files) {
+    fig <- magick::image_read(file)
+    magick:::`plot.magick-image`(fig)
+  }
+}
 
 
