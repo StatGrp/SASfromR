@@ -25,6 +25,7 @@
 #' @param remove_tempfiles Logical, whether to remove temporary files (e.g. SAS transport files, .sas7bdat-files, generated .sas-files, and log- or output-files unless they have been given more persistent paths through `output_file` and `log_file` arguments). Note: `remove_tempfiles=TRUE` is useful for debugging, but is not intended to be used on a regular basis. Temporary files are automatically removed when the current R-session ends.
 #' @param repair_names Logical, whether to automatically repair the names of incoming data sets to adhere to SAS standards. If `FALSE` non-compliant names will throw an error.
 #' @param factor_format_conv Logical, whether to automatically convert R-factors to SAS-formats and vice versa.
+#' @param warn Logical, whether to display general warnings about changes to data set and variable names.
 #'
 #' @returns A data set or named list of data sets, corresponding to those produced by SAS and placed in the "out"-library (unless otherwise specified in `outdata`. If no data sets are to be returned, SASfromR will return NULL (silently).
 #' @export

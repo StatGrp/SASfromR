@@ -97,6 +97,7 @@ import_SAS_data <- function(out_path, outdata=NULL, factor_format_conv=TRUE) {
 #' @export
 #'
 #' @examples
+#' \dontrun{# no examples yet}
 plot_sas_figures <- function(dir) {
   files <- list.files(dir, full.names=TRUE)
   for (file in files) {

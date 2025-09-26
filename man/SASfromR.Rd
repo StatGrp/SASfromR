@@ -15,9 +15,11 @@ SASfromR(
   log_file = NULL,
   display_log = FALSE,
   display_output = TRUE,
+  html_output = FALSE,
   remove_tempfiles = TRUE,
   repair_names = TRUE,
-  factor_format_conv = TRUE
+  factor_format_conv = TRUE,
+  warn = TRUE
 )
 }
 \arguments{
@@ -41,11 +43,15 @@ SASfromR(
 
 \item{display_output}{Logical, whether to display the SAS output in the R console.}
 
+\item{html_output}{Logical, whether the output should be presented in HTML format.}
+
 \item{remove_tempfiles}{Logical, whether to remove temporary files (e.g. SAS transport files, .sas7bdat-files, generated .sas-files, and log- or output-files unless they have been given more persistent paths through `output_file` and `log_file` arguments). Note: `remove_tempfiles=TRUE` is useful for debugging, but is not intended to be used on a regular basis. Temporary files are automatically removed when the current R-session ends.}
 
 \item{repair_names}{Logical, whether to automatically repair the names of incoming data sets to adhere to SAS standards. If `FALSE` non-compliant names will throw an error.}
 
 \item{factor_format_conv}{Logical, whether to automatically convert R-factors to SAS-formats and vice versa.}
+
+\item{warn}{Logical, whether to display general warnings about changes to data set and variable names.}
 }
 \value{
 A data set or named list of data sets, corresponding to those produced by SAS and placed in the "out"-library (unless otherwise specified in `outdata`. If no data sets are to be returned, SASfromR will return NULL (silently).
