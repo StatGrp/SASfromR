@@ -42,12 +42,12 @@ execute_SAS_script <- function(sas_script,
   if (length(sas_conditions)>0) {
     cli::cli({
       cli::cli_rule()
-      cli::cli_alert("The following errors and/or warnings were reported in the SAS log.")
+      cli::cli_alert("The following errors and/or warnings were reported in the SAS log (use display_log=TRUE for full log).")
       for (cond in sas_conditions) {
         if (stringr::str_detect(cond,"^ERROR")) {
-          cli::cli_alert_danger(cond)
+          cli::cli_alert_danger(paste0(cond,"..."))
         } else {
-          cli::cli_alert_warning(cond)
+          cli::cli_alert_warning(paste0(cond,"..."))
         }
       }
       cli::cli_rule()

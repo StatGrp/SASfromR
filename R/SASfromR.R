@@ -132,8 +132,10 @@ SASfromR <- function(sas_code, indata=NULL, outdata=NULL,
     } else if (display_output) {
       plot_sas_figures(fig_path)
     }
-    if (remove_tempfiles & length(list.files(html_path, recursive=TRUE))==0) {unlink(html_path, recursive=TRUE)}
-    }, add=TRUE)
+    if (remove_tempfiles & length(list.files(html_path, recursive=TRUE))==0) {
+      unlink(html_path, recursive=TRUE)
+    }
+  }, add=TRUE)
   #if (factor_format_conv) {
     out_path_fmt <- file.path(out_path,"fmt")
     dir.create(out_path_fmt)

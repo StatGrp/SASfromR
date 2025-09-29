@@ -154,4 +154,19 @@ do_if_cexists_SAS <- function(dname,do_this) {
   )")
 }
 
-
+#' Plot SAS-generated images in plot-pane.
+#'
+#' @param dir Path to directory where SAS-generated images are stored.
+#'
+#' @returns NULL
+#' @export
+#'
+#' @examples
+#' \dontrun{# no examples yet}
+plot_sas_figures <- function(dir) {
+  files <- list.files(dir, full.names=TRUE)
+  for (file in files) {
+    fig <- magick::image_read(file)
+    magick:::`plot.magick-image`(fig)
+  }
+}
