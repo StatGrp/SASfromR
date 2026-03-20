@@ -7,6 +7,9 @@ Authors@R: c(
       "Jens", "Michelsen",
       email = "jens.michelsen@tuta.com",
       role = c("aut", "cre")
+    ),
+    person(
+      "Statistiska Konsultgruppen Sweden", role = "cph"
     )
   )
 Description: This package allows you to run SAS code (through batch-mode) from within R.
